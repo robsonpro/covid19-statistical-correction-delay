@@ -6,5 +6,5 @@ O arquivo "INFLUD-15-02-2021.csv" foi obtido do data SUS e podia ser lido direta
 
 data <- read.csv("https://s3-sa-east-1.amazonaws.com/ckan.saude.gov.br/SRAG/2020/INFLUD-15-02-2021.csv", sep = ";")
 
-Ele foi disponibilizado no github devido o limite de armazenamento. Caso queiram obter o arquivo gentileza solicitar via email (robsondutra@ufsj.edu.br) ou via google drive: https://drive.google.com/file/d/1pbDR2qNpXrm6xP7izkXlVJS9M3SChyJT/view?usp=sharing
+Este não foi disponibilizado no github devido o limite de armazenamento. Caso queiram obter o arquivo gentileza solicitar via email (robsondutra@ufsj.edu.br) ou via google drive: https://drive.google.com/file/d/1pbDR2qNpXrm6xP7izkXlVJS9M3SChyJT/view?usp=sharing
 
