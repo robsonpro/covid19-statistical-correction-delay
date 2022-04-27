@@ -1,0 +1,78 @@
+---
+title: "R0_MG"
+output: html_document
+date: '2022-04-25'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Estimativa de R0 para MG
+
+A seguir apresentamos o código para a estimativa de $R_0$ para o estado de Minas Gerais. 
+
+```{r}
+# Bibliotecas
+library(utils)
+library(httr)
+library(ggplot2)
+library(bbmle)
+
+#download dos dados
+GET("https://raw.githubusercontent.com/wcota/covid19br/master/cases-brazil-states.csv", authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".csv")))
+
+#leitura de dados
+data <- read.csv(tf)
+
+# Mudar para o estado que deseja modelar
+estado <- c("MG")
+
+# Filtrando para o estado selecionado
+data_UF <- subset(data, state == estado)
+
+# Ordenando por data
+data_UF <- data_UF[order(as.Date(data_UF$date,format="%Y/%m/%d")),]
+
+# Removendo dias sem infectados
+data_UF <- data_UF[data_UF$totalCases != 0,]
+
+# Encontrando R0
+Dia_log <- 5:16
+
+fit <- lm(log(data_UF$totalCases[5:16])~Dia_log)
+summary(fit)
+
+#
+r <- fit$coef["Dia_log"]
+
+# V, intervalo serial, conforme Nishiura et al. (2020), V = 4.8 
+V <- 4.8
+
+# R0 de MG
+R0_MG <- V*r+1
+R0_MG
+
+# Limites p/ R0 de MG
+V*confint(fit)[2,1] + 1
+V*confint(fit)[2,2] + 1
+
+# Plotando
+data_UF3 <- data.frame(Day = 1:100,
+                       totalCases = data_UF$totalCases[1:100])
+data_UF3_fit <- data.frame(Day = Dia_log, 
+                           totalCases = exp(predict(fit, newdata = data.frame(Dia_log))),
+                           L = exp(predict(fit, newdata = data.frame(Dia_log), interval = "confidence")[,2]),
+                           U = exp(predict(fit, newdata = data.frame(Dia_log), interval = "confidence")[,3]))
+
+ggplot(data_UF3) + 
+  geom_line(data = data_UF3_fit, aes(x=Day, y=totalCases)) +
+  geom_ribbon(data = data_UF3_fit, aes(x = Day, ymin=L, ymax=U), alpha=0.2, 
+              col = "aquamarine3", fill = "aquamarine3") + 
+  ylab("log Incidência acumulada - MG") + xlab("Dia") + 
+  geom_point(aes(x=Day, y=totalCases), col = "aquamarine4", size = 2, 
+             shape = 21, fill = "aquamarine3") + 
+  scale_y_continuous(trans='log10') + 
+  theme_bw()
+```
+

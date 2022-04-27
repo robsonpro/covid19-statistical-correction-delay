@@ -1,0 +1,200 @@
+---
+title: "Rt_deconv_OB"
+output: html_document
+date: '2022-04-25'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Deconvolução
+
+A seguir apresentamos o código para obter a deconvolução para Ouro Branco. O objetivo é estimar a curva de incidência a partir da curva de notificações, considerando uma amostra de indivíduos que reportou ambas as datas. Neste script a cidade selecionada foi Ouro Branco. Para rodar para outras, basta fazer as devidas adaptações na leitura dos dados.
+
+```{r}
+# Por sorte a salvamos antes
+data <- read.csv("INFLUD-15-02-2021.csv", sep = ";")
+
+library(dplyr)
+library(fitdistrplus)
+library(utils)
+library(httr)
+library(ggplot2)
+library(EpiEstim)
+library(incidental)
+
+##### OB
+# Filtrando dados apenas de OB
+OB <- filter(data, ID_MUNICIP == "OURO BRANCO")
+
+# Armazenando data de notificação
+OB_dados <- as.data.frame(OB$ID_REGIONA)
+OB_dados[, "DataNot"] <- as.data.frame(OB$DT_NOTIFIC)
+
+# Armazenando data de ínico dos sintomas
+OB_dados[, "DataInicio"] <- as.data.frame(OB$DT_SIN_PRI)
+
+# Passando dados para o formato de data
+OB_dados$DataNot <- as.Date(OB_dados$DataNot, "%d/%m/%y")
+OB_dados$DataInicio <- as.Date(OB_dados$DataInicio, "%d/%m/%y")
+
+# Criando coluna com atraso nos dias de notificação
+OB_dados[, "OB_Atraso"] <- difftime(OB_dados$DataNot, OB_dados$DataInicio, units = "days")
+
+# Armazenado dados (em valor absoluto) do atraso em um vetor
+OB_Atraso <- abs(as.vector(OB_dados$OB_Atraso))
+
+# Retirando valores negativos devido ao erro de ano na notificação dos dados
+OB_Atraso2 <- OB_Atraso>0
+OB_Atraso <- OB_Atraso[OB_Atraso2]
+
+# Retirando valores maiores que 100 (prováveis de erros de digitação)
+OB_Atraso3 <- OB_Atraso<100
+OB_Atraso <- OB_Atraso[OB_Atraso3]
+
+# Observando algumas estatísticas descritivas para auxiliar a tomada de decisão (Cullen and Frey graph):
+OB_g2 <- descdist(OB_Atraso, discrete=FALSE, boot=500)
+
+# Ajustando às distribuições escolhidas:
+fit_w_OB  <- fitdist(OB_Atraso, "weibull")
+fit_g_OB  <- fitdist(OB_Atraso, "gamma")
+fit_ln_OB <- fitdist(OB_Atraso, "lnorm")
+
+## Graficos no ggplot para artigo
+library(ggplot2)
+p1 <- ggplot(data.frame(OB_Atraso), aes(x=OB_Atraso)) + 
+  geom_histogram(binwidth = 1, bins= 55, boundary = 0.5, closed = "left", aes(y=..density..), 
+                 color="black", fill="grey90") + theme_bw() 
+p1 + 
+  stat_function(fun = dweibull, 
+                args = list(shape = fit_w_OB$estimate[1], scale = fit_w_OB$estimate[2]), 
+                aes(colour = "Weibull", linetype = "Weibull"), size=1) + 
+  stat_function(fun = dgamma,
+                args = list(rate = fit_g_OB$estimate[2], shape = fit_g_OB$estimate[1]),
+                aes(colour = "Gamma", linetype = "Gamma"), size=1) + 
+  stat_function(fun = dlnorm, args = list(meanlog = fit_ln_OB$estimate[1], sdlog = fit_ln_OB$estimate[2]),
+                aes(colour = "Lognormal", linetype = "Lognormal"), size=1) +
+  xlab("Observações de atraso - OB") + ylab("Densidade") +
+  scale_color_manual(name = "Distribuição", 
+                     values = c("Weibull" = "green3", 
+                                "Gamma" = "red", 
+                                "Lognormal" = "blue")) + 
+  scale_linetype_manual(name = "Distribuição", 
+                        values = c("Weibull" = "solid", 
+                                   "Gamma" = "dashed", 
+                                   "Lognormal" = "dotted")) +
+  theme(legend.position=c(0.7,0.7)) + xlim(0,40)
+
+OB_Atraso_df <- data.frame(OB_Atraso)
+
+```
+
+A partir da distribuição do atraso realiza-se a deconvolução para estimar a curva de indivíduos com início de manifestação dos sintomas.
+
+```{r}
+###*******************************************************************************###
+
+# Lendo planilha com os dados
+dados_OB <- read.csv("DadosCOVID_OuroBranco.csv")
+
+# Organizando dados
+Infectados_OB <- dados_OB$Infectados
+Mortos_OB <- dados_OB$Mortos
+Recuperados_OB <- dados_OB$Recuperados
+Dia <- 1:(length(Infectados_OB))
+
+# Doentes <- Infectados - Recuperados - Mortos
+Doentes_OB <- Infectados_OB - Mortos_OB - Recuperados_OB
+
+### Deconvolution_OB
+
+OB_model <- fit_incidence(reported = Doentes_OB, #round(yhat.sp1[,1]), 
+                          delay_dist = hist(OB_Atraso, 
+                                            breaks = 55, 
+                                            plot = F)$density,
+                          regularization_order = 1,
+                          dof_grid = 150)
+
+### Convolucao
+
+### dados de incidencia estimados via deconvolucao
+a <- OB_model$Ihat 
+
+### probabilidades amostrais (depois fazer com weibull)
+B <- hist(OB_Atraso, 
+          breaks = 55,
+          plot = F)$density
+
+b <- rep(0, length(a))
+b[1:length(B)] <- B
+
+### convolucao para obter dados reportados
+yt <- convolve(OB_model$Ihat,rev(b), type = "o")
+
+B2 <- B[1:40] ### probabilidades de atraso
+
+plot(OB_model$Chat, pch = 21, type="n", xlab = "Tempo", ylab = "Doentes", ylim = c(0,130))
+grid()
+
+for(i in 1:100){
+  Doentes_OB_rep <- rep(0, length(Doentes_OB))
+  for(t in 1: length(Doentes_OB)){
+    atrasos <- sample(1:40, OB_model$Ihat[t], replace = T, prob = B2)
+    count_atraso <- tabulate(atrasos) # hist(atrasos, breaks = 60, plot = F)$counts
+    l_atr <- length(count_atraso)
+    Doentes_OB_rep[t:(t+l_atr-1)] <- Doentes_OB_rep[t:(t+l_atr-1)] + count_atraso
+  }
+  lines(Doentes_OB_rep, col = "gray85")
+}
+points(Doentes_OB, pch = 3, col = "red")
+points(OB_model$Ihat, type = "l", col = "black", lty = 1, lwd = 2)
+points(OB_model$Chat, type = "l", col = "blue", lty = 2, lwd = 2)
+legend("topleft", legend = c("Incidencia estimada", "Convolução", "Dados reportados"),
+       col = c("black", "blue", "red"), lty = c(1,2,NA), pch = c(NA,NA,3), cex = 0.8)
+
+```
+
+Após obtenção da curva de indivíduos com manifestação dos sintomas, faz-se a estimativa de Rt corrigido.
+
+```{r}
+# Estimando Rt para dados brutos
+res_OB <- estimate_R(Doentes_OB, 
+                     method="parametric_si",
+                     config = make_config(
+                       list(mean_si = 4.8, 
+                            std_si = 2.3)))
+
+R0_ic_dados_OB <- res_OB$R
+colnames(R0_ic_dados_OB) <- c("t_start", "t_end", "mean_R", "std_R", "q0025", "q005", "q025", "median", "q075", "q095", "q0975")
+
+
+### estimando Rt para dados corrigidos
+res_OB2 <- estimate_R(OB_model$Ihat, 
+                      method="parametric_si",
+                      config = make_config(
+                        list(mean_si = 4.8, 
+                             std_si = 2.3)))
+
+R0_ic_dados_OB_deconv <- res_OB2$R
+colnames(R0_ic_dados_OB_deconv) <- c("t_start", "t_end", "mean_R", "std_R", "q0025", "q005", "q025", "median", "q075", "q095", "q0975")
+
+line_types <- c("Rt corrigido" = "solid", "Rt bruto" = "dashed")
+cols <- c("Rt corrigido" = "gray12", "Rt bruto" = "gray50")
+p6 <- ggplot() + 
+  geom_line(data = R0_ic_dados_OB_deconv, aes(x=t_start, y = mean_R, linetype = "Rt corrigido", colour = "Rt corrigido"), size=0.75) +
+  geom_line(data = R0_ic_dados_OB, aes(x=t_start, y = mean_R, linetype = "Rt bruto", colour = "Rt bruto"), size=0.75) +
+  geom_hline(yintercept = 1, color = "tomato2") +
+  scale_x_continuous(breaks = c(0, 30, 60, 90, 120, 150), 
+                     label = c("18/05","03/07","18/08","30/09","16/11","30/12")) +
+  ylab("Rt") +
+  xlab("Dias") + 
+  scale_colour_manual(name=NULL,values=cols, 
+                      guide = guide_legend(override.aes=aes(fill=NA))) + 
+  scale_linetype_manual(name=NULL,values=line_types) +
+  ggtitle("Ouro Branco") + theme_bw() 
+
+p6 + theme(legend.position=c(0.83,0.9), legend.key.size = unit(0.4, 'cm'), legend.key.width = unit(0.85, 'cm'))
+
+
+```

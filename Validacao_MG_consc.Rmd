@@ -1,0 +1,90 @@
+---
+title: "Valiadação MG COnsciente via Rt corrigido"
+author: "Robson"
+date: '2022-04-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Validação do Programa Minas Consciente pelo Rt corrigido
+
+Ao fim do artigo foi realizada a validação do programa Minas Consciente pelo Rt corrigido. Foi observada uma maior relação entre o Rt corrigido e a variação na mudança de ondas do programa.
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(latex2exp)
+library(ggpubr)
+
+dados_ondas_BH <- read.csv2("Ondas_BH.csv", sep = "")
+dados_ondas_SJDR <- read.csv2("Ondas_SJDR.csv", sep = "")
+dados_ondas_OB <- read.csv2("Ondas_OB.csv", sep = "")
+dados_ondas_SL <- read.csv2("Ondas_SL.csv", sep = "")
+
+ondas_BH <- data.frame(Onda = as.factor(rep(dados_ondas_BH$Onda[1:(length(dados_ondas_BH$Onda)-1)],2)),
+                       Rt = c(diff(as.numeric(dados_ondas_BH$Rt_com_atraso)), diff(as.numeric(dados_ondas_BH$Rt_sem_atraso))),
+                       Método = c(rep("Rt bruto", (nrow(dados_ondas_BH)-1)), rep("Rt corrigido", (nrow(dados_ondas_BH)-1)))
+                       )
+
+ondas_SJDR <- data.frame(Onda = as.factor(rep(dados_ondas_SJDR$Onda[1:(length(dados_ondas_SJDR$Onda)-1)],2)),
+                         Rt = c(diff(as.numeric(dados_ondas_SJDR$Rt_com_atraso)), diff(as.numeric(dados_ondas_SJDR$Rt_sem_atraso))),
+                         Método = c(rep("Rt bruto", (nrow(dados_ondas_SJDR)-1)), rep("Rt corrigido", (nrow(dados_ondas_SJDR)-1))))
+
+ondas_OB <- data.frame(Onda = as.factor(rep(dados_ondas_OB$Onda[1:(length(dados_ondas_OB$Onda)-1)],2)),
+                         Rt = c(diff(as.numeric(dados_ondas_OB$Rt_com_atraso)), diff(as.numeric(dados_ondas_OB$Rt_sem_atraso))),
+                         Método = c(rep("Rt bruto", (nrow(dados_ondas_OB)-1)), rep("Rt corrigido", (nrow(dados_ondas_OB)-1))))
+
+
+ondas_SL <- data.frame(Onda = as.factor(rep(dados_ondas_SL$Onda[1:(length(dados_ondas_SL$Onda)-1)],2)),
+                       Rt = c(diff(as.numeric(dados_ondas_SL$Rt_com_atraso)), diff(as.numeric(dados_ondas_SL$Rt_sem_atraso))),
+                       Método = c(rep("Rt bruto", (nrow(dados_ondas_SL)-1)), rep("Rt corrigido", (nrow(dados_ondas_SL)-1))))
+
+Means_BH <- ondas_BH %>% group_by(Onda, Método) %>% 
+  summarize(Rt = median(Rt))
+
+Means_SJDR <- ondas_SJDR %>% group_by(Onda, Método) %>% 
+  summarize(Rt = median(Rt))
+
+Means_OB <- ondas_OB %>% group_by(Onda, Método) %>% 
+  summarize(Rt = median(Rt))
+
+Means_SL <- ondas_SL %>% group_by(Onda, Método) %>% 
+  summarize(Rt = median(Rt))
+
+
+
+q1 <- ggplot(Means_BH, aes(x = Onda, y = Rt, group = Método)) +
+  geom_point(aes(col = Método, shape = Método), lwd = 2) + ggtitle("Belo Horizonte") +
+  geom_line(aes(col = Método, linetype = Método)) + ylab(TeX("$\\tilde{\\Delta R_t$}")) + theme_bw() 
+q1 <- q1 + theme(legend.position = c(.65, .25), legend.title = element_text(size=0),
+                 legend.text = element_text(size=6), 
+                 panel.background = element_rect(fill='transparent', color = NA),
+                 legend.background = element_rect(fill='transparent', color = NA), #transparent legend bg
+                 legend.box.background = element_rect(fill='transparent', color = NA), #transparent legend panel
+                 legend.key = element_rect(colour = NA, fill = NA)
+                 ) 
+# q1
+
+q2 <- ggplot(Means_SJDR, aes(x = Onda, y = Rt, group = Método)) +
+  geom_point(aes(col = Método, shape = Método), lwd = 2) + ggtitle("São João del-Rei") +
+  geom_line(aes(col = Método, linetype = Método)) + ylab(TeX("$\\tilde{\\Delta R_t$}")) + theme_bw()
+q2 <-  q2 + theme(legend.position = "None")
+
+q3 <- ggplot(Means_OB, aes(x = Onda, y = Rt, group = Método)) +
+  geom_point(aes(col = Método, shape = Método), lwd = 2) + ggtitle("Ouro Branco") +
+  geom_line(aes(col = Método, linetype = Método)) + ylab(TeX("$\\tilde{\\Delta R_t$}")) + theme_bw()
+q3 <-  q3 + theme(legend.position = "None")
+
+q4 <- ggplot(Means_SL, aes(x = Onda, y = Rt, group = Método)) +
+  geom_point(aes(col = Método, shape = Método), lwd = 2) + ggtitle("Sete Lagoas") +
+  geom_line(aes(col = Método, linetype = Método)) + ylab(TeX("$\\tilde{\\Delta R_t$}")) + theme_bw()
+q4 <-  q4 + theme(legend.position = "None")
+  
+ggarrange(q1,q2,q3,q4)
+
+
+```

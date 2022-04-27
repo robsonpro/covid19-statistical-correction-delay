@@ -1,0 +1,133 @@
+---
+title: "Validação Deconvolução"
+author: "Robson"
+date: '2022-04-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Validação Deconvolução
+
+Para validação da deconvolução, esta foi aplicada nos dados da amostra de notificados que forneceram informações da dada de início dos sintomas. A análise foi realizada para a amostra de Belo Horizonte, dada a esparcidade das amostras das cidades menores. Inicialmente foi realizada a análise da distribuição do atraso nas notificações.
+
+```{r}
+library(dplyr)
+library(fitdistrplus)
+library(utils)
+library(httr)
+library(ggplot2)
+library(EpiEstim)
+library(incidental)
+library(splines)
+library(caret)
+
+data <- read.csv("INFLUD-15-02-2021.csv", sep = ";")
+
+##### BH
+# Filtrando dados apenas de BH
+BH <- filter(data, ID_MUNICIP == "BELO HORIZONTE")
+
+# Armazenando data de notificação
+BH_dados <- as.data.frame(BH$ID_REGIONA)
+BH_dados[, "DataNot"] <- as.data.frame(BH$DT_NOTIFIC)
+
+# Armazenando data de início dos sintomas
+BH_dados[, "DataInicio"] <- as.data.frame(BH$DT_SIN_PRI)
+
+# Passando dados para o formato de data
+BH_dados$DataNot <- as.Date(BH_dados$DataNot, "%d/%m/%y")
+BH_dados$DataInicio <- as.Date(BH_dados$DataInicio, "%d/%m/%y")
+
+# Criando coluna com atraso nos dias de notificação
+BH_dados[, "BH_Atraso"] <- difftime(BH_dados$DataNot, BH_dados$DataInicio, units = "days")
+
+# Armazenado dados (em valor absoluto) do atraso em um vetor
+BH_Atraso <- abs(as.vector(BH_dados$BH_Atraso))
+
+# Retirando valores negativos devido ao erro de ano na notificação dos dados
+BH_Atraso2 <- BH_Atraso>0
+BH_Atraso <- BH_Atraso[BH_Atraso2]
+
+# Retirando valores maiores que 100 (prov?veis de erros de digitação)
+BH_Atraso3 <- BH_Atraso<100
+BH_Atraso <- BH_Atraso[BH_Atraso3]
+
+```
+
+Posteriormente foi realizada a deconvolução da amostra de Belo Horizonte.
+
+```{r}
+### deconvolucao
+BH_amostra_not <- tabulate(as.factor(BH_dados$DataNot))
+BH_amostral <- fit_incidence(reported = BH_amostra_not, 
+                             delay_dist = hist(BH_Atraso, 
+                                               breaks = 100, 
+                                               plot = F)$density,
+                             regularization_order = 1,
+                             dof_grid = 150)
+
+### plotando dados amostra BH
+plot(tabulate(as.factor(BH_dados$DataNot)), pch = 3, col = "red", xlab = "Tempo", 
+     ylab = "Indivíduos", ylim = c(0,250))
+points(tabulate(as.factor(BH_dados$DataInicio)), pch = 20, col = "black")
+legend("topleft", legend = c("Notificados", "Início Sintomas"),
+       col = c("red", "black"), pch = c(3,20), cex = 1, bty="n", y.intersp=2)
+grid()
+
+```
+
+Finalmente foi realizada uma regressão via splines para aproximar os dados amostrais de início dos sintomas com o objetivo de averiguar o ajuste da deconvolução. Foi realizada uma validação cruzada para evitar overfitting da spline.  
+
+```{r}
+### plotando resultado da deconvolucao
+plot(BH_amostral$Ihat, type = "l", col = "black", lty = 1, lwd = 2, xlab = "Tempo", 
+     ylab = "Indiv?duos", ylim = c(0,250)) ### deconvolucao (sintomas)
+lines(BH_amostral$Chat, col = "red", lty = 2, lwd = 2) ### convolucao (reportados)
+
+data_BH_amostra <- data.frame(tempo = 1:length(tabulate(as.factor(BH_dados$DataInicio))),
+                              doentes = tabulate(as.factor(BH_dados$DataInicio)))
+
+set.seed(45)
+
+# dados de treino (80%)
+tr <- round(0.8*nrow(data_BH_amostra))
+treino <- sample(nrow(data_BH_amostra), tr, replace = F)
+
+# separando dados de treino e teste
+dados.treino <- data_BH_amostra[treino,]
+dados.teste <- data_BH_amostra[-treino,]
+
+dados.treino <- dados.treino[order(dados.treino$tempo),]
+dados.teste <- dados.teste[order(dados.teste$tempo),]
+
+# treino spline
+sp11 <- lm(doentes ~ ns(tempo, df = 25), dados.treino)
+yhat.sp11 <- sp11$fitted.values
+lines(dados.treino$tempo, yhat.sp11, col = "gray50", lwd = 2, lty = 3)
+grid()
+legend("topleft", legend = c("Deconvolução", "Spline (Notificados)", "Spline (Sintomas)"),
+       col = c("black", "red", "gray50"), lty = c(1,2,3), cex = 1, bty="n", y.intersp=2)
+
+# teste spline
+yhat.sp11.teste <- predict(sp11, newdata = data.frame(tempo = dados.teste$tempo))
+
+## resultado deconvolucao
+res_deconv <- data.frame(obs = BH_amostral$Ihat,
+                         pred = tabulate(as.factor(BH_dados$DataInicio))[1:length(BH_amostral$Ihat)])
+
+## resultado spline treino
+res_spline <- data.frame(obs = dados.treino$doentes,
+                         pred = yhat.sp11)
+
+## resultado spline teste
+res_spline.te <- data.frame(obs = dados.teste$doentes,
+                            pred = yhat.sp11.teste)
+
+defaultSummary(res_deconv) # deconvolucao
+defaultSummary(res_spline) # treino spline
+defaultSummary(res_spline.te) # teste spline
+
+```
