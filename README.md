@@ -6,5 +6,11 @@ data <- read.csv("https://s3-sa-east-1.amazonaws.com/ckan.saude.gov.br/SRAG/2020
 
 Por sorte baixamos o dataset antes, porém este não foi disponibilizado aqui no github devido limite de armazenamento. Interessados gentileza solicitar via email (robsondutra@ufsj.edu.br) ou via google drive: https://drive.google.com/file/d/1pbDR2qNpXrm6xP7izkXlVJS9M3SChyJT/view?usp=sharing
 
-# Estimativa de R0
+## Estimativa de R0
+
+A seguir o código e resultados para estimativa de R0 para o estado de Minas Gerais.
 https://robsonpro.github.io/covid19-statistical-correction-delay/R0_MG.html
+
+## Deconvolução
+A seguir o código e resultados para deconvolução para a cidade de Ouro Branco. O procedimento pode ser realizado de forma análoga para as outras cidades consideradas no artigo além de outras de interesse.
+https://robsonpro.github.io/covid19-statistical-correction-delay/Rt_deconv_OB.html
