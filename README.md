@@ -25,3 +25,4 @@ https://robsonpro.github.io/covid19-statistical-correction-delay/Validacao_decon
 ## Rt corrigido e plano Minas Consciente
 Finalmente, o efeito da mudança no Rt considerando as mudanças de onda no Minas Consciente foi realizado conforme segue.
 
+https://robsonpro.github.io/covid19-statistical-correction-delay/Validacao_MG_consc.html
