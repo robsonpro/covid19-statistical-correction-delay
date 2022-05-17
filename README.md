@@ -16,3 +16,12 @@ https://robsonpro.github.io/covid19-statistical-correction-delay/R0_MG.html
 A seguir o código e resultados para deconvolução para a cidade de Ouro Branco. O procedimento pode ser realizado de forma análoga para as outras cidades consideradas no artigo além de outras de interesse.
 
 https://robsonpro.github.io/covid19-statistical-correction-delay/Rt_deconv_OB.html
+
+## Validação da deconvolução para Belo Horizonte
+A validação da deconvolução foi realizada para a cidade de Belo Horizonte, conforme segue. A capital foi considerada, visto que as do interior tem dados mais esparços.
+
+https://robsonpro.github.io/covid19-statistical-correction-delay/Validacao_deconv_BH.html
+
+## Rt corrigido e plano Minas Consciente
+Finalmente, o efeito da mudança no Rt considerando as mudanças de onda no Minas Consciente foi realizado conforme segue.
+
