@@ -9,8 +9,10 @@ Por sorte baixamos o dataset antes, porém este não foi disponibilizado aqui no
 ## Estimativa de R0
 
 A seguir o código e resultados para estimativa de R0 para o estado de Minas Gerais.
+
 https://robsonpro.github.io/covid19-statistical-correction-delay/R0_MG.html
 
 ## Deconvolução
 A seguir o código e resultados para deconvolução para a cidade de Ouro Branco. O procedimento pode ser realizado de forma análoga para as outras cidades consideradas no artigo além de outras de interesse.
+
 https://robsonpro.github.io/covid19-statistical-correction-delay/Rt_deconv_OB.html
