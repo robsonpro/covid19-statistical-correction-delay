@@ -2,6 +2,7 @@
 Repositório das análises do artigo "Estimation of Reproduction Number for Covid-19 with Statistical Correction of Notifications Delay" publicado na revista IEEE Latin America Transactions.
 
 https://latamt.ieeer9.org/index.php/transactions/article/view/6276
+
 10.1109/TLA.2021.9827471
 
 O arquivo "INFLUD-15-02-2021.csv" foi obtido do data SUS e podia ser lido diretamente da web via linguagem R antes do dito ataque hacker aos dados do SUS em 12/2021. A seguir o código para leitura do arquivo.
